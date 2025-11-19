@@ -1,0 +1,946 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="main-content">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-title">
+            <h1 class="page-title">Mis Rifas</h1>
+            <p class="page-subtitle">Gestiona y monitorea todas tus rifas</p>
+        </div>
+        <div class="user-menu">
+            <form method="GET" class="search-form" id="searchForm">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="q" placeholder="Buscar rifas..." value="{{ search_query }}">
+                    <button type="submit" class="search-btn">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <input type="hidden" name="estado" value="{{ current_filter }}">
+                <input type="hidden" name="sort" value="{{ current_sort }}">
+            </form>
+            <a href="" class="btn btn-primary btn-icon">
+                <i class="fas fa-plus"></i>
+                Nueva Rifa
+            </a>
+        </div>
+    </header>
+
+    <!-- Estadísticas rápidas -->
+    <div class="stats-overview">
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-icon total">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value">{{ total_rifas }}</div>
+                    <div class="stat-label">Total Rifas</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-icon active">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value">{{ rifas_activas }}</div>
+                    <div class="stat-label">Activas</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-icon completed">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value">{{ rifas_completadas }}</div>
+                    <div class="stat-label">Completadas</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-icon revenue">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value">{{ rifas.paginator.count }}</div>
+                    <div class="stat-label">Mostrando</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros y controles -->
+    <div class="controls-container">
+        <div class="filters-section">
+            <div class="section-label">Filtrar por estado:</div>
+            <div class="filter-buttons">
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}estado=all&sort={{ current_sort }}" 
+                   class="filter-btn {% if current_filter == 'all' %}active{% endif %}">
+                    <i class="fas fa-border-all"></i>
+                    Todas
+                </a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}estado=activa&sort={{ current_sort }}" 
+                   class="filter-btn {% if current_filter == 'activa' %}active{% endif %}">
+                    <i class="fas fa-play-circle"></i>
+                    Activas
+                </a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}estado=completada&sort={{ current_sort }}" 
+                   class="filter-btn {% if current_filter == 'completada' %}active{% endif %}">
+                    <i class="fas fa-check-circle"></i>
+                    Completadas
+                </a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}estado=sorteada&sort={{ current_sort }}" 
+                   class="filter-btn {% if current_filter == 'sorteada' %}active{% endif %}">
+                    <i class="fas fa-trophy"></i>
+                    Sorteadas
+                </a>
+                <a href="?{% if search_query %}q={{ search_query }}&{% endif %}estado=cancelada&sort={{ current_sort }}" 
+                   class="filter-btn {% if current_filter == 'cancelada' %}active{% endif %}">
+                    <i class="fas fa-times-circle"></i>
+                    Canceladas
+                </a>
+            </div>
+        </div>
+        
+        <div class="sort-section">
+            <div class="section-label">Ordenar por:</div>
+            <select class="sort-select" onchange="updateSort(this.value)">
+                {% for sort_value, sort_label in sort_options.items %}
+                <option value="{{ sort_value }}" {% if current_sort == sort_value %}selected{% endif %}>
+                    {{ sort_label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Grid de Rifas -->
+    <div class="rifas-grid" id="rifasGrid">
+        {% for rifa in rifas %}
+        <div class="rifa-card" data-estado="{{ rifa.estado }}">
+            <div class="rifa-card-header">
+                <div class="rifa-status status-{{ rifa.estado }}">
+                    <i class="fas 
+                        {% if rifa.estado == 'activa' %}fa-play-circle
+                        {% elif rifa.estado == 'completada' %}fa-check-circle
+                        {% elif rifa.estado == 'sorteada' %}fa-trophy
+                        {% else %}fa-times-circle{% endif %}">
+                    </i>
+                    {{ rifa.get_estado_display }}
+                </div>
+                <div class="rifa-actions">
+                    <button class="action-btn btn-edit" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn btn-view" title="Ver detalles">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="action-btn btn-more" title="Más opciones">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="rifa-image-container">
+                {% if rifa.imagen %}
+                <img src="{{ rifa.imagen.url }}" alt="{{ rifa.nombre }}" class="rifa-image">
+                {% else %}
+                <div class="rifa-image-placeholder">
+                    <i class="fas fa-ticket-alt"></i>
+                </div>
+                {% endif %}
+                <div class="rifa-overlay">
+                    <span class="rifa-price">${{ rifa.precio_numero }}</span>
+                </div>
+            </div>
+
+            <div class="rifa-info">
+                <h3 class="rifa-title">{{ rifa.nombre }}</h3>
+                <p class="rifa-description">{{ rifa.descripcion|truncatewords:20 }}</p>
+                
+                <div class="rifa-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-calendar"></i>
+                        <span>Sorteo: {{ rifa.fecha_sorteo|date:"d M Y" }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-hashtag"></i>
+                        <span>{{ rifa.cantidad_numeros }} números</span>
+                    </div>
+                </div>
+
+                <div class="sales-progress">
+                    <div class="progress-header">
+                        <span>Progreso de ventas</span>
+                        <span class="progress-percentage">{{ rifa.porcentaje_vendido|default:0|floatformat:1 }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ rifa.porcentaje_vendido|default:0 }}%"></div>
+                    </div>
+                    <div class="progress-stats">
+                        <span>{{ rifa.numeros_vendidos|default:0 }} vendidos</span>
+                        <span>{{ rifa.numeros_disponibles|default:rifa.cantidad_numeros }} disponibles</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rifa-card-footer">
+                <div class="rifa-dates">
+                    <small>Creada: {{ rifa.fecha_creacion|date:"d M Y" }}</small>
+                </div>
+                <button class="btn btn-outline btn-sm">
+                    <i class="fas fa-chart-bar"></i>
+                    Detalles
+                </button>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-ticket-alt"></i>
+            </div>
+            <h3>No se encontraron rifas</h3>
+            <p>
+                {% if search_query or current_filter != 'all' %}
+                Prueba con otros términos de búsqueda o filtros
+                {% else %}
+                Comienza creando tu primera rifa para organizar sorteos
+                {% endif %}
+            </p>
+            <a href="" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Crear mi primera rifa
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Paginación -->
+    {% if rifas.has_other_pages %}
+    <div class="pagination-container">
+        <div class="pagination">
+            {% if rifas.has_previous %}
+                <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}&estado={{ current_filter }}&sort={{ current_sort }}" 
+                   class="page-btn">
+                    <i class="fas fa-angle-double-left"></i>
+                </a>
+                <a href="?page={{ rifas.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}&estado={{ current_filter }}&sort={{ current_sort }}" 
+                   class="page-btn">
+                    <i class="fas fa-angle-left"></i>
+                </a>
+            {% endif %}
+
+            <span class="page-info">
+                Página {{ rifas.number }} de {{ rifas.paginator.num_pages }}
+            </span>
+
+            {% if rifas.has_next %}
+                <a href="?page={{ rifas.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}&estado={{ current_filter }}&sort={{ current_sort }}" 
+                   class="page-btn">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+                <a href="?page={{ rifas.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}&estado={{ current_filter }}&sort={{ current_sort }}" 
+                   class="page-btn">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    /* Variables adicionales */
+    :root {
+        --success: #00c853;
+        --warning: #ff9800;
+        --error: #f44336;
+        --info: #2196f3;
+        --purple: #9c27b0;
+        --teal: #009688;
+    }
+
+    /* Header mejorado */
+    .header-title {
+        flex: 1;
+    }
+
+    .page-subtitle {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+
+    .user-menu {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    /* Botones mejorados */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+        left: 100%;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--purple));
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 112, 243, 0.3);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 112, 243, 0.4);
+    }
+
+    .btn-outline {
+        background: transparent;
+        border: 2px solid var(--accent);
+        color: var(--accent);
+    }
+
+    .btn-outline:hover {
+        background: var(--accent);
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+    }
+
+    .btn-icon {
+        padding: 0.75rem 1.25rem;
+    }
+
+    /* Search form mejorado */
+    .search-form {
+        display: flex;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        background: var(--bg-card);
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+        border: 2px solid var(--border);
+        transition: all 0.3s ease;
+    }
+
+    .search-box:focus-within {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+    }
+
+    .search-box input {
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        outline: none;
+        width: 250px;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .search-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .search-btn:hover {
+        color: var(--accent);
+        background: var(--glass-bg);
+    }
+
+    /* Estadísticas mejoradas */
+    .stats-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--bg-card);
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), var(--purple));
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-content {
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .stat-icon.total { background: rgba(33, 150, 243, 0.2); color: var(--info); }
+    .stat-icon.active { background: rgba(0, 200, 83, 0.2); color: var(--success); }
+    .stat-icon.completed { background: rgba(156, 39, 176, 0.2); color: var(--purple); }
+    .stat-icon.revenue { background: rgba(0, 150, 136, 0.2); color: var(--teal); }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Controles mejorados */
+    .controls-container {
+        background: var(--bg-card);
+        border-radius: 16px;
+        padding: 1.5rem;
+        border: 1px solid var(--glass-border);
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 2rem;
+    }
+
+    .filters-section,
+    .sort-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .section-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .filter-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border: 2px solid var(--border);
+        background: transparent;
+        color: var(--text-secondary);
+        border-radius: 10px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .filter-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: translateY(-1px);
+    }
+
+    .filter-btn.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 112, 243, 0.3);
+    }
+
+    .sort-select {
+        background: var(--bg-secondary);
+        border: 2px solid var(--border);
+        color: var(--text-primary);
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        outline: none;
+        min-width: 200px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .sort-select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+    }
+
+    /* Tarjetas de rifas mejoradas */
+    .rifas-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .rifa-card {
+        background: var(--bg-card);
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+        box-shadow: var(--shadow);
+        transition: all 0.4s ease;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .rifa-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--accent), var(--purple));
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .rifa-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .rifa-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        border-color: var(--accent);
+    }
+
+    .rifa-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem 0;
+        margin-bottom: 1rem;
+    }
+
+    .rifa-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-activa { background: rgba(0, 200, 83, 0.15); color: var(--success); border: 1px solid rgba(0, 200, 83, 0.3); }
+    .status-completada { background: rgba(33, 150, 243, 0.15); color: var(--info); border: 1px solid rgba(33, 150, 243, 0.3); }
+    .status-sorteada { background: rgba(156, 39, 176, 0.15); color: var(--purple); border: 1px solid rgba(156, 39, 176, 0.3); }
+    .status-cancelada { background: rgba(244, 67, 54, 0.15); color: var(--error); border: 1px solid rgba(244, 67, 54, 0.3); }
+
+    .rifa-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+
+    .action-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .btn-edit:hover { background: var(--info); color: white; border-color: var(--info); }
+    .btn-view:hover { background: var(--success); color: white; border-color: var(--success); }
+    .btn-more:hover { background: var(--purple); color: white; border-color: var(--purple); }
+
+    .rifa-image-container {
+        position: relative;
+        height: 200px;
+        margin: 0 1.5rem;
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--bg-secondary);
+    }
+
+    .rifa-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .rifa-image-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+        font-size: 3rem;
+        background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+    }
+
+    .rifa-overlay {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .rifa-info {
+        padding: 1.5rem;
+    }
+
+    .rifa-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        color: var(--text-primary);
+        line-height: 1.3;
+    }
+
+    .rifa-description {
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+        font-size: 0.95rem;
+    }
+
+    .rifa-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .meta-item i {
+        width: 16px;
+        color: var(--accent);
+    }
+
+    .sales-progress {
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .progress-percentage {
+        font-weight: 700;
+        color: var(--accent);
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: var(--bg-secondary);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.75rem;
+        position: relative;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--purple));
+        border-radius: 4px;
+        transition: width 0.8s ease;
+        position: relative;
+    }
+
+    .progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .rifa-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-top: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .rifa-dates {
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 3rem;
+    }
+
+    .pagination {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--bg-card);
+        padding: 1rem 1.5rem;
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+    }
+
+    .page-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+
+    .page-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: translateY(-1px);
+    }
+
+    .page-info {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        padding: 0 1rem;
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--bg-card);
+        border-radius: 20px;
+        border: 2px dashed var(--border);
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        opacity: 0.5;
+    }
+
+    .empty-state h3 {
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+        font-size: 1.5rem;
+    }
+
+    .empty-state p {
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        font-size: 1rem;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .controls-container {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1.5rem;
+        }
+
+        .filters-section,
+        .sort-section {
+            justify-content: space-between;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .header {
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .user-menu {
+            width: 100%;
+            flex-direction: column;
+        }
+
+        .search-form {
+            width: 100%;
+        }
+
+        .search-box input {
+            width: 100%;
+        }
+
+        .rifas-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .filter-buttons {
+            justify-content: center;
+        }
+
+        .stats-overview {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .stats-overview {
+            grid-template-columns: 1fr;
+        }
+
+        .rifa-card-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .rifa-actions {
+            align-self: flex-end;
+        }
+    }
+</style>
+
+<script>
+    function updateSort(sortValue) {
+        const url = new URL(window.location);
+        url.searchParams.set('sort', sortValue);
+        window.location.href = url.toString();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const progressBars = document.querySelectorAll('.progress-fill');
+        progressBars.forEach(bar => {
+            const width = bar.style.width;
+            bar.style.width = '0';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, 100);
+        });
+    });
+
+    const cards = document.querySelectorAll('.rifa-card');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-8px) scale(1.02)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+        });
+    });
+</script>
+{% endblock %}
