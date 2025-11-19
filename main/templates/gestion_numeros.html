@@ -1,0 +1,723 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="main-content">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-title">
+            <h1 class="page-title">{{ rifa.nombre }}</h1>
+            <p class="page-subtitle">Gestión de Números - {{ rifa.cantidad_numeros }} números totales</p>
+        </div>
+        <div class="user-menu">
+            <a href="{% url 'mis_rifas' %}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i>
+                Volver a Mis Rifas
+            </a>
+        </div>
+    </header>
+
+    <!-- Estadísticas rápidas -->
+    <div class="stats-overview">
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-icon total">
+                    <i class="fas fa-hashtag"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value">{{ stats.total }}</div>
+                    <div class="stat-label">Total Números</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-icon available">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value">{{ stats.disponibles }}</div>
+                    <div class="stat-label">Disponibles</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-icon reserved">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value">{{ stats.reservados }}</div>
+                    <div class="stat-label">Reservados</div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-content">
+                <div class="stat-icon sold">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <div class="stat-info">
+                    <div class="stat-value">{{ stats.vendidos }}</div>
+                    <div class="stat-label">Vendidos</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controles y Filtros -->
+    <div class="controls-container">
+        <div class="filters-section">
+            <div class="section-label">Filtrar por estado:</div>
+            <div class="filter-buttons">
+                <a href="?estado=all" class="filter-btn {% if current_filter == 'all' %}active{% endif %}">
+                    <i class="fas fa-border-all"></i>
+                    Todos
+                </a>
+                <a href="?estado=disponible" class="filter-btn {% if current_filter == 'disponible' %}active{% endif %}">
+                    <i class="fas fa-check-circle"></i>
+                    Disponibles
+                </a>
+                <a href="?estado=reservado" class="filter-btn {% if current_filter == 'reservado' %}active{% endif %}">
+                    <i class="fas fa-clock"></i>
+                    Reservados
+                </a>
+                <a href="?estado=vendido" class="filter-btn {% if current_filter == 'vendido' %}active{% endif %}">
+                    <i class="fas fa-shopping-cart"></i>
+                    Vendidos
+                </a>
+            </div>
+        </div>
+        
+        <div class="search-section">
+            <form method="GET" class="search-form">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="number" name="numero" placeholder="Buscar número..." value="{{ search_numero }}" min="1" max="{{ rifa.cantidad_numeros }}">
+                    <button type="submit" class="search-btn">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                {% if current_filter != 'all' %}
+                <input type="hidden" name="estado" value="{{ current_filter }}">
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Grid de Números -->
+    <div class="numeros-grid" id="numerosGrid">
+        {% for numero in numeros %}
+        <div class="numero-card numero-{{ numero.estado }}" data-numero-id="{{ numero.id }}">
+            <div class="numero-header">
+                <span class="numero-value">{{ numero.numero }}</span>
+                <span class="numero-status status-{{ numero.estado }}">
+                    {{ numero.get_estado_display }}
+                </span>
+            </div>
+            
+            {% if numero.estado != 'disponible' %}
+            <div class="numero-info">
+                <div class="comprador-info">
+                    <div class="comprador-name">
+                        <i class="fas fa-user"></i>
+                        {{ numero.nombre_comprador|default:"Sin nombre" }}
+                    </div>
+                    <div class="comprador-phone">
+                        <i class="fas fa-phone"></i>
+                        {{ numero.telefono_comprador|default:"Sin teléfono" }}
+                    </div>
+                </div>
+                {% if numero.fecha_compra %}
+                <div class="fecha-info">
+                    <small>Comprado: {{ numero.fecha_compra|date:"d M Y" }}</small>
+                </div>
+                {% elif numero.fecha_reserva %}
+                <div class="fecha-info">
+                    <small>Reservado: {{ numero.fecha_reserva|date:"d M Y" }}</small>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <div class="numero-actions">
+                <button class="action-btn btn-info" onclick="mostrarModalNumero({{ numero.id }})" title="Ver detalles">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-hashtag"></i>
+            </div>
+            <h3>No se encontraron números</h3>
+            <p>No hay números que coincidan con los filtros aplicados</p>
+            <a href="?" class="btn btn-primary">
+                <i class="fas fa-refresh"></i>
+                Mostrar todos los números
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal para gestión de números -->
+<div id="numeroModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">Gestión del Número <span id="modalNumero"></span></h3>
+            <button class="modal-close" onclick="cerrarModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="current-info" id="currentInfo">
+                <!-- Información actual se cargará aquí -->
+            </div>
+            
+            <form id="numeroForm" class="numero-form">
+                <input type="hidden" id="numeroId">
+                
+                <div class="form-group">
+                    <label for="estado">Estado:</label>
+                    <select id="estado" name="estado" class="form-select" onchange="toggleCompradorFields()">
+                        <option value="disponible">Disponible</option>
+                        <option value="reservado">Reservado</option>
+                        <option value="vendido">Vendido</option>
+                    </select>
+                </div>
+                
+                <div id="compradorFields" class="comprador-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="nombre">Nombre del comprador:</label>
+                        <input type="text" id="nombre" name="nombre" class="form-input" placeholder="Ingrese el nombre">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="telefono">Teléfono:</label>
+                        <input type="tel" id="telefono" name="telefono" class="form-input" placeholder="Ingrese el teléfono">
+                    </div>
+                    
+                    <div class="form-group" id="transferenciaField" style="display: none;">
+                        <label for="metodoPago">Método de pago:</label>
+                        <select id="metodoPago" name="metodo_pago" class="form-select">
+                            <option value="efectivo">Efectivo</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="cerrarModal()">
+                Cancelar
+            </button>
+            <button type="button" class="btn btn-primary" onclick="guardarCambios()">
+                <i class="fas fa-save"></i>
+                Guardar Cambios
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Variables adicionales */
+    :root {
+        --available: #00c853;
+        --reserved: #ff9800;
+        --sold: #f44336;
+        --available-bg: rgba(0, 200, 83, 0.1);
+        --reserved-bg: rgba(255, 152, 0, 0.1);
+        --sold-bg: rgba(244, 67, 54, 0.1);
+    }
+
+    /* Estadísticas específicas */
+    .stat-icon.available { background: var(--available-bg); color: var(--available); }
+    .stat-icon.reserved { background: var(--reserved-bg); color: var(--reserved); }
+    .stat-icon.sold { background: var(--sold-bg); color: var(--sold); }
+
+    /* Grid de números */
+    .numeros-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .numero-card {
+        background: var(--bg-card);
+        border-radius: 16px;
+        border: 2px solid var(--border);
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .numero-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+    }
+
+    .numero-disponible::before { background: var(--available); }
+    .numero-reservado::before { background: var(--reserved); }
+    .numero-vendido::before { background: var(--sold); }
+
+    .numero-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .numero-vendido {
+        position: relative;
+        opacity: 0.8;
+    }
+
+    .numero-vendido::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 10%;
+        right: 10%;
+        height: 2px;
+        background: var(--sold);
+        transform: rotate(-15deg);
+        opacity: 0.7;
+    }
+
+    .numero-reservado {
+        background: linear-gradient(135deg, var(--bg-card), var(--reserved-bg));
+    }
+
+    .numero-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .numero-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        font-family: 'Courier New', monospace;
+    }
+
+    .numero-vendido .numero-value {
+        color: var(--sold);
+    }
+
+    .numero-reservado .numero-value {
+        color: var(--reserved);
+    }
+
+    .numero-status {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-disponible { background: var(--available-bg); color: var(--available); }
+    .status-reservado { background: var(--reserved-bg); color: var(--reserved); }
+    .status-vendido { background: var(--sold-bg); color: var(--sold); }
+
+    .numero-info {
+        border-top: 1px solid var(--border);
+        padding-top: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .comprador-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .comprador-name,
+    .comprador-phone {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .comprador-name i { color: var(--info); }
+    .comprador-phone i { color: var(--success); }
+
+    .fecha-info {
+        text-align: right;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        opacity: 0.7;
+    }
+
+    .numero-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+
+    .action-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .btn-info:hover { background: var(--info); color: white; border-color: var(--info); }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+        background: var(--bg-card);
+        margin: 5% auto;
+        border-radius: 20px;
+        border: 1px solid var(--glass-border);
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from { transform: translateY(-50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: var(--text-primary);
+    }
+
+    .modal-close {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+        background: var(--error);
+        color: white;
+    }
+
+    .modal-body {
+        padding: 2rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding: 1.5rem 2rem;
+        border-top: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .current-info {
+        background: var(--bg-secondary);
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--border);
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .info-label {
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .info-value {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    /* Formularios */
+    .numero-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .form-input,
+    .form-select {
+        background: var(--bg-secondary);
+        border: 2px solid var(--border);
+        color: var(--text-primary);
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        outline: none;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+    }
+
+    .comprador-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .numeros-grid {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        }
+
+        .controls-container {
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .modal-content {
+            margin: 10% auto;
+            width: 95%;
+        }
+
+        .modal-header,
+        .modal-body,
+        .modal-footer {
+            padding: 1rem 1.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .numeros-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .numero-header {
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+        }
+
+        .modal-content {
+            margin: 5% auto;
+        }
+    }
+</style>
+
+<script>
+    let currentNumeroId = null;
+
+    function mostrarModalNumero(numeroId) {
+        currentNumeroId = numeroId;
+        
+        fetch(`/numero/${numeroId}/datos/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('modalNumero').textContent = data.numero;
+                document.getElementById('numeroId').value = numeroId;
+                document.getElementById('estado').value = data.estado;
+                document.getElementById('nombre').value = data.nombre_comprador || '';
+                document.getElementById('telefono').value = data.telefono_comprador || '';
+                
+                const currentInfo = document.getElementById('currentInfo');
+                currentInfo.innerHTML = `
+                    <div class="info-item">
+                        <span class="info-label">Estado actual:</span>
+                        <span class="info-value status-${data.estado}">${getEstadoDisplay(data.estado)}</span>
+                    </div>
+                    ${data.nombre_comprador ? `
+                    <div class="info-item">
+                        <span class="info-label">Comprador:</span>
+                        <span class="info-value">${data.nombre_comprador}</span>
+                    </div>
+                    ` : ''}
+                    ${data.telefono_comprador ? `
+                    <div class="info-item">
+                        <span class="info-label">Teléfono:</span>
+                        <span class="info-value">${data.telefono_comprador}</span>
+                    </div>
+                    ` : ''}
+                    ${data.fecha_compra ? `
+                    <div class="info-item">
+                        <span class="info-label">Fecha compra:</span>
+                        <span class="info-value">${new Date(data.fecha_compra).toLocaleDateString()}</span>
+                    </div>
+                    ` : ''}
+                    ${data.fecha_reserva ? `
+                    <div class="info-item">
+                        <span class="info-label">Fecha reserva:</span>
+                        <span class="info-value">${new Date(data.fecha_reserva).toLocaleDateString()}</span>
+                    </div>
+                    ` : ''}
+                `;
+                
+                toggleCompradorFields();
+                document.getElementById('numeroModal').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cargar los datos del número');
+            });
+    }
+
+    function cerrarModal() {
+        document.getElementById('numeroModal').style.display = 'none';
+        currentNumeroId = null;
+    }
+
+    function toggleCompradorFields() {
+        const estado = document.getElementById('estado').value;
+        const compradorFields = document.getElementById('compradorFields');
+        const transferenciaField = document.getElementById('transferenciaField');
+        
+        if (estado === 'disponible') {
+            compradorFields.style.display = 'none';
+        } else {
+            compradorFields.style.display = 'flex';
+            
+            if (estado === 'vendido') {
+                transferenciaField.style.display = 'block';
+            } else {
+                transferenciaField.style.display = 'none';
+            }
+        }
+    }
+
+    function guardarCambios() {
+        const numeroId = document.getElementById('numeroId').value;
+        const formData = new FormData();
+        
+        formData.append('estado', document.getElementById('estado').value);
+        formData.append('nombre', document.getElementById('nombre').value);
+        formData.append('telefono', document.getElementById('telefono').value);
+        
+        fetch(`/numero/${numeroId}/actualizar/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                cerrarModal();
+                location.reload();
+            } else {
+                alert('Error al actualizar el número: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al actualizar el número');
+        });
+    }
+
+    function getEstadoDisplay(estado) {
+        const estados = {
+            'disponible': 'Disponible',
+            'reservado': 'Reservado', 
+            'vendido': 'Vendido'
+        };
+        return estados[estado] || estado;
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('numeroModal');
+        if (event.target === modal) {
+            cerrarModal();
+        }
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            cerrarModal();
+        }
+    });
+</script>
+{% endblock %}
