@@ -60,20 +60,6 @@ Accede a [http://127.0.0.1:8000](http://127.0.0.1:8000) para ver el panel.
 
 ---
 
-## 🛠 Roadmap
-
-- **Sistema de elecciones**
-    - Carga de listas
-    - Seguimiento en tiempo real del escrutinio
-    - Carga digital de los resultados
-    - Resultados accesibles para todo el publico
-- **Gestion avanzadas de eventos**
-    - Gestión de torneos: Generación de partidos, Inscripción de equipos, Resultados
-    - Reuniones
-- **Comunicados**
-    - Comunicados del CDE públicos
-
----
 
 ## 🤝 Cómo contribuir
 
